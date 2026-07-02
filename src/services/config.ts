@@ -74,6 +74,10 @@ export const CONFIG_KEYS = {
   HTTP_API_ENABLED: 'httpApiEnabled',
   HTTP_API_PORT: 'httpApiPort',
   HTTP_API_HOST: 'httpApiHost',
+  MCP_TOKEN: 'mcpToken',
+  MCP_ENABLED: 'mcpEnabled',
+  MCP_PORT: 'mcpPort',
+  MCP_HOST: 'mcpHost',
   MESSAGE_PUSH_ENABLED: 'messagePushEnabled',
   MESSAGE_PUSH_FILTER_MODE: 'messagePushFilterMode',
   MESSAGE_PUSH_FILTER_LIST: 'messagePushFilterList',
@@ -199,6 +203,15 @@ export async function getHttpApiToken(): Promise<string> {
 // 设置access_token
 export async function setHttpApiToken(token: string): Promise<void> {
   await config.set(CONFIG_KEYS.HTTP_API_TOKEN, token)
+}
+
+export async function getMcpToken(): Promise<string> {
+  const value = await config.get(CONFIG_KEYS.MCP_TOKEN)
+  return (value as string) || ''
+}
+
+export async function setMcpToken(token: string): Promise<void> {
+  await config.set(CONFIG_KEYS.MCP_TOKEN, token)
 }
 
 // 设置数据库路径
@@ -1869,6 +1882,33 @@ export async function getHttpApiHost(): Promise<string> {
 
 export async function setHttpApiHost(host: string): Promise<void> {
   await config.set(CONFIG_KEYS.HTTP_API_HOST, host)
+}
+
+export async function getMcpEnabled(): Promise<boolean> {
+  const value = await config.get(CONFIG_KEYS.MCP_ENABLED)
+  return value === true
+}
+
+export async function setMcpEnabled(enabled: boolean): Promise<void> {
+  await config.set(CONFIG_KEYS.MCP_ENABLED, enabled)
+}
+
+export async function getMcpPort(): Promise<number> {
+  const value = await config.get(CONFIG_KEYS.MCP_PORT)
+  return typeof value === 'number' ? value : 5032
+}
+
+export async function setMcpPort(port: number): Promise<void> {
+  await config.set(CONFIG_KEYS.MCP_PORT, port)
+}
+
+export async function getMcpHost(): Promise<string> {
+  const value = await config.get(CONFIG_KEYS.MCP_HOST)
+  return typeof value === 'string' && value.trim() ? value.trim() : '127.0.0.1'
+}
+
+export async function setMcpHost(host: string): Promise<void> {
+  await config.set(CONFIG_KEYS.MCP_HOST, host)
 }
 
 // ─── AI 见解 ──────────────────────────────────────────────────────────────────

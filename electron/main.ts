@@ -29,6 +29,7 @@ import { cloudControlService } from './services/cloudControlService'
 
 import { destroyNotificationWindow, registerNotificationHandlers, showNotification, setNotificationNavigateHandler } from './windows/notificationWindow'
 import { httpService } from './services/httpService'
+import { mcpService } from './services/mcpService'
 import { messagePushService } from './services/messagePushService'
 import { insightService } from './services/insightService'
 import { insightRecordService } from './services/insightRecordService'
@@ -4146,6 +4147,26 @@ function registerIpcHandlers() {
     }
   })
 
+  // MCP 服务
+  ipcMain.handle('mcp:start', async (_, port?: number, host?: string) => {
+    const bindHost = typeof host === 'string' && host.trim() ? host.trim() : '127.0.0.1'
+    return mcpService.start(port || 5032, bindHost)
+  })
+
+  ipcMain.handle('mcp:stop', async () => {
+    await mcpService.stop()
+    return { success: true }
+  })
+
+  ipcMain.handle('mcp:status', async () => {
+    return {
+      running: mcpService.isRunning(),
+      port: mcpService.getPort(),
+      host: mcpService.getHost(),
+      url: mcpService.getUrl()
+    }
+  })
+
   // 自动下载原图
   ipcMain.handle('image:startAutoDownload', async (_, whitelist?: string[]) => {
     return await imageDownloadService.startAutoDownload(whitelist || [])
@@ -4429,6 +4450,7 @@ app.whenReady().then(async () => {
   checkForUpdatesOnStartup()
 
   await httpService.autoStart()
+  await mcpService.autoStart()
 
   app.on('activate', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -4469,6 +4491,8 @@ const shutdownAppServices = async (): Promise<void> => {
     try { chatService.close() } catch {}
     // 停止 HTTP 服务器，释放 TCP 端口占用，避免进程无法退出
     try { await httpService.stop() } catch {}
+    // 停止 MCP 服务器，释放 TCP 端口占用
+    try { await mcpService.stop() } catch {}
     // 终止 wcdb Worker 线程，避免线程阻止进程退出
     try { await wcdbService.shutdown() } catch {}
   })()

@@ -1452,6 +1452,11 @@ export interface ElectronAPI {
     stop: () => Promise<{ success: boolean }>
     status: () => Promise<{ running: boolean; port: number; mediaExportPath: string }>
   }
+  mcp: {
+    start: (port?: number, host?: string) => Promise<{ success: boolean; port?: number; url?: string; error?: string }>
+    stop: () => Promise<{ success: boolean }>
+    status: () => Promise<{ running: boolean; port: number; host: string; url: string }>
+  }
   social: {
     saveWeiboCookie: (rawInput: string) => Promise<SocialSaveWeiboCookieResult>
     validateWeiboUid: (uid: string) => Promise<SocialValidateWeiboUidResult>

@@ -581,6 +581,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     status: () => ipcRenderer.invoke('http:status')
   },
 
+  // MCP 服务
+  mcp: {
+    start: (port?: number, host?: string) => ipcRenderer.invoke('mcp:start', port, host),
+    stop: () => ipcRenderer.invoke('mcp:stop'),
+    status: () => ipcRenderer.invoke('mcp:status')
+  },
+
   // AI 见解
   insight: {
     testConnection: () => ipcRenderer.invoke('insight:testConnection'),

@@ -83,6 +83,10 @@ interface ConfigSchema {
   httpApiPort: number
   httpApiHost: string
   httpApiToken: string
+  mcpEnabled: boolean
+  mcpPort: number
+  mcpHost: string
+  mcpToken: string
   windowCloseBehavior: 'ask' | 'tray' | 'quit'
   quoteLayout: 'quote-top' | 'quote-bottom'
   wordCloudExcludeWords: string[]
@@ -149,6 +153,7 @@ const ENCRYPTED_STRING_KEYS: Set<string> = new Set([
   'imageAesKey',
   'authPassword',
   'httpApiToken',
+  'mcpToken',
   'aiModelApiKey',
   'aiInsightApiKey',
   'aiInsightWeiboCookie'
@@ -222,6 +227,10 @@ export class ConfigService {
       httpApiEnabled: false,
       httpApiPort: 5031,
       httpApiHost: '127.0.0.1',
+      mcpToken: '',
+      mcpEnabled: false,
+      mcpPort: 5032,
+      mcpHost: '127.0.0.1',
       messagePushEnabled: false,
       messagePushFilterMode: 'all',
       messagePushFilterList: [],

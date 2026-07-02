@@ -28,6 +28,7 @@ type SettingsTab =
   | 'models'
   | 'cache'
   | 'api'
+  | 'mcp'
   | 'updates'
   | 'security'
   | 'about'
@@ -48,6 +49,7 @@ const tabs: { id: Exclude<SettingsTab, 'insight' | 'aiFootprint' | 'aiMessageIns
   { id: 'autoDownload', label: '自动下载', icon: Download },
   { id: 'cache', label: '缓存', icon: HardDrive },
   { id: 'api', label: 'API 服务', icon: Globe },
+  { id: 'mcp', label: 'MCP 服务', icon: Plug },
   { id: 'analytics', label: '分析', icon: BarChart2 },
   { id: 'security', label: '安全', icon: ShieldCheck },
   { id: 'updates', label: '版本更新', icon: RefreshCw },
@@ -175,6 +177,7 @@ function SettingsPage({ onClose }: SettingsPageProps = {}) {
   const [whisperModelStatus, setWhisperModelStatus] = useState<{ exists: boolean; modelPath?: string; tokensPath?: string } | null>(null)
 
   const [httpApiToken, setHttpApiToken] = useState('')
+  const [mcpToken, setMcpToken] = useState('')
 
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 B';
@@ -195,10 +198,26 @@ function SettingsPage({ onClose }: SettingsPageProps = {}) {
     showMessage('已生成并保存新的 Access Token', true)
   }
 
+  const generateRandomMcpToken = async () => {
+    const array = new Uint8Array(16)
+    crypto.getRandomValues(array)
+    const token = Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('')
+
+    setMcpToken(token)
+    await configService.setMcpToken(token)
+    showMessage('已生成并保存新的 MCP Access Token', true)
+  }
+
   const clearApiToken = async () => {
     setHttpApiToken('')
     await configService.setHttpApiToken('')
     showMessage('已清除 Access Token，API 将允许无鉴权访问', true)
+  }
+
+  const clearMcpToken = async () => {
+    setMcpToken('')
+    await configService.setMcpToken('')
+    showMessage('已清除 MCP Access Token，MCP 服务将无法启动', true)
   }
 
 
@@ -277,6 +296,13 @@ function SettingsPage({ onClose }: SettingsPageProps = {}) {
   const [httpApiMediaExportPath, setHttpApiMediaExportPath] = useState('')
   const [isTogglingApi, setIsTogglingApi] = useState(false)
   const [showApiWarning, setShowApiWarning] = useState(false)
+  const [mcpEnabled, setMcpEnabled] = useState(false)
+  const [mcpPort, setMcpPort] = useState(5032)
+  const [mcpHost, setMcpHost] = useState('127.0.0.1')
+  const [mcpRunning, setMcpRunning] = useState(false)
+  const [mcpUrl, setMcpUrl] = useState('http://127.0.0.1:5032/mcp')
+  const [isTogglingMcp, setIsTogglingMcp] = useState(false)
+  const [showMcpWarning, setShowMcpWarning] = useState(false)
   const [messagePushEnabled, setMessagePushEnabled] = useState(false)
   const [messagePushFilterMode, setMessagePushFilterMode] = useState<configService.MessagePushFilterMode>('all')
   const [messagePushFilterList, setMessagePushFilterList] = useState<string[]>([])
@@ -373,6 +399,22 @@ function SettingsPage({ onClose }: SettingsPageProps = {}) {
       }
     }
     checkApiStatus()
+  }, [])
+
+  // 检查 MCP 服务状态
+  useEffect(() => {
+    const checkMcpStatus = async () => {
+      try {
+        const status = await window.electronAPI.mcp.status()
+        setMcpRunning(status.running)
+        if (status.port) setMcpPort(status.port)
+        if (status.host) setMcpHost(status.host)
+        if (status.url) setMcpUrl(status.url)
+      } catch (e) {
+        console.error('检查 MCP 状态失败:', e)
+      }
+    }
+    checkMcpStatus()
   }, [])
 
   useEffect(() => {
@@ -502,6 +544,21 @@ function SettingsPage({ onClose }: SettingsPageProps = {}) {
 
       const savedApiHost = await configService.getHttpApiHost()
       if (savedApiHost) setHttpApiHost(savedApiHost)
+
+      const savedMcpEnabled = await configService.getMcpEnabled()
+      setMcpEnabled(savedMcpEnabled)
+
+      const savedMcpToken = await configService.getMcpToken()
+      if (savedMcpToken) setMcpToken(savedMcpToken)
+
+      const savedMcpPort = await configService.getMcpPort()
+      if (savedMcpPort) setMcpPort(savedMcpPort)
+
+      const savedMcpHost = await configService.getMcpHost()
+      if (savedMcpHost) {
+        setMcpHost(savedMcpHost)
+        setMcpUrl(`http://${savedMcpHost}:${savedMcpPort || 5032}/mcp`)
+      }
 
       setAuthEnabled(savedAuthEnabled)
       setAuthUseHello(savedAuthUseHello)
@@ -2799,6 +2856,82 @@ function SettingsPage({ onClose }: SettingsPageProps = {}) {
     showMessage('已复制 API 地址', true)
   }
 
+  const handleToggleMcp = async () => {
+    if (isTogglingMcp) return
+
+    if (!mcpRunning) {
+      if (!mcpToken.trim()) {
+        showMessage('请先生成或填写 MCP Access Token', false)
+        return
+      }
+      setShowMcpWarning(true)
+      return
+    }
+
+    setIsTogglingMcp(true)
+    try {
+      await window.electronAPI.mcp.stop()
+      setMcpRunning(false)
+      setMcpEnabled(false)
+      await configService.setMcpEnabled(false)
+      showMessage('MCP 服务已停止', true)
+    } catch (e: any) {
+      showMessage(`操作失败: ${e}`, false)
+    } finally {
+      setIsTogglingMcp(false)
+    }
+  }
+
+  const confirmStartMcp = async () => {
+    setShowMcpWarning(false)
+    if (!mcpToken.trim()) {
+      showMessage('请先生成或填写 MCP Access Token', false)
+      return
+    }
+    setIsTogglingMcp(true)
+    try {
+      const result = await window.electronAPI.mcp.start(mcpPort, mcpHost)
+      if (result.success) {
+        setMcpRunning(true)
+        setMcpEnabled(true)
+        if (result.port) setMcpPort(result.port)
+        if (result.url) setMcpUrl(result.url)
+        await configService.setMcpEnabled(true)
+        await configService.setMcpPort(result.port || mcpPort)
+        await configService.setMcpHost(mcpHost)
+        showMessage(`MCP 服务已启动，端口 ${result.port}`, true)
+      } else {
+        showMessage(`启动失败: ${result.error}`, false)
+      }
+    } catch (e: any) {
+      showMessage(`操作失败: ${e}`, false)
+    } finally {
+      setIsTogglingMcp(false)
+    }
+  }
+
+  const handleCopyMcpUrl = () => {
+    navigator.clipboard.writeText(mcpUrl || `http://${mcpHost}:${mcpPort}/mcp`)
+    showMessage('已复制 MCP 地址', true)
+  }
+
+  const handleCopyMcpJson = () => {
+    const url = mcpUrl || `http://${mcpHost}:${mcpPort}/mcp`
+    const config = {
+      mcpServers: {
+        weflow: {
+          type: 'http',
+          url,
+          headers: {
+            Authorization: `Bearer ${mcpToken}`
+          }
+        }
+      }
+    }
+    navigator.clipboard.writeText(JSON.stringify(config, null, 2))
+    showMessage('已复制 MCP 客户端配置', true)
+  }
+
   const handleToggleMessagePush = async (enabled: boolean) => {
     setMessagePushEnabled(enabled)
     await configService.setMessagePushEnabled(enabled)
@@ -4885,6 +5018,188 @@ JSON 输出格式：
     </div>
   )
 
+  const renderMcpTab = () => (
+    <div className="tab-content">
+      <div className="form-group">
+        <label>MCP 服务</label>
+        <span className="form-hint">启用后，支持 MCP 的 AI 客户端可按授权访问本地会话、消息搜索、会话统计和分析包。</span>
+        <div className="log-toggle-line">
+          <span className="log-status">
+            {mcpRunning ? '运行中' : '已停止'}
+          </span>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={mcpRunning}
+              onChange={handleToggleMcp}
+              disabled={isTogglingMcp}
+            />
+            <span className="switch-slider" />
+          </label>
+        </div>
+      </div>
+
+      <div className="form-group">
+        <label>监听地址</label>
+        <span className="form-hint">默认 <code>127.0.0.1</code> 仅本机访问。只有明确需要容器或远程客户端访问时才改为 <code>0.0.0.0</code>。</span>
+        <input
+          type="text"
+          className="field-input"
+          value={mcpHost}
+          placeholder="127.0.0.1"
+          onChange={(e) => {
+            const host = e.target.value.trim() || '127.0.0.1'
+            setMcpHost(host)
+            setMcpUrl(`http://${host}:${mcpPort}/mcp`)
+            scheduleConfigSave('mcpHost', () => configService.setMcpHost(host))
+          }}
+          disabled={mcpRunning}
+          style={{ width: 180, fontFamily: 'monospace' }}
+        />
+      </div>
+
+      <div className="form-group">
+        <label>服务端口</label>
+        <span className="form-hint">MCP 服务监听的端口号（1024-65535），默认 <code>5032</code>。</span>
+        <input
+          type="number"
+          className="field-input"
+          value={mcpPort}
+          onChange={(e) => {
+            const port = parseInt(e.target.value, 10) || 5032
+            setMcpPort(port)
+            setMcpUrl(`http://${mcpHost}:${port}/mcp`)
+            scheduleConfigSave('mcpPort', () => configService.setMcpPort(port))
+          }}
+          disabled={mcpRunning}
+          style={{ width: 120 }}
+          min={1024}
+          max={65535}
+        />
+      </div>
+
+      <div className="form-group">
+        <label>Access Token (必填)</label>
+        <span className="form-hint">
+          MCP 请求必须携带 <code>Authorization: Bearer &lt;token&gt;</code>，或通过 <code>?access_token=&lt;token&gt;</code> 传入。未设置 Token 时服务不会启动。
+        </span>
+        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+          <input
+            type="text"
+            className="field-input"
+            value={mcpToken}
+            placeholder="请生成或填写 MCP Access Token"
+            onChange={(e) => {
+              const val = e.target.value
+              setMcpToken(val)
+              scheduleConfigSave('mcpToken', () => configService.setMcpToken(val))
+            }}
+            style={{ flex: 1, fontFamily: 'monospace' }}
+          />
+          <button className="btn btn-secondary" onClick={generateRandomMcpToken}>
+            <RefreshCw size={14} style={{ marginRight: 4 }} /> 随机生成
+          </button>
+          {mcpToken && (
+            <button className="btn btn-danger" onClick={clearMcpToken} title="清除 Token">
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="form-group">
+        <label>MCP 地址</label>
+        <span className="form-hint">客户端连接此 Streamable HTTP endpoint。</span>
+        <div className="api-url-display">
+          <input
+            type="text"
+            className="field-input"
+            value={mcpUrl || `http://${mcpHost}:${mcpPort}/mcp`}
+            readOnly
+          />
+          <button className="btn btn-secondary" onClick={handleCopyMcpUrl} title="复制">
+            <Copy size={16} />
+          </button>
+        </div>
+      </div>
+
+      <div className="form-group">
+        <label>客户端配置</label>
+        <span className="form-hint">复制后填入支持 MCP Streamable HTTP 的客户端配置。不同客户端字段名可能略有差异。</span>
+        <div className="api-url-display">
+          <input
+            type="text"
+            className="field-input"
+            value={`Authorization: Bearer ${mcpToken || '<token>'}`}
+            readOnly
+          />
+          <button className="btn btn-secondary" onClick={handleCopyMcpJson} disabled={!mcpToken} title="复制配置">
+            <Copy size={16} />
+          </button>
+        </div>
+      </div>
+
+      <div className="form-group">
+        <label>已提供工具</label>
+        <span className="form-hint">所有消息读取工具都有分页和最大返回量限制；默认不返回媒体二进制。</span>
+        <div className="api-docs">
+          {[
+            ['weflow.list_sessions', '列出本地会话，支持类型、关键词和分页'],
+            ['weflow.get_session_messages', '分页读取单个会话消息'],
+            ['weflow.search_messages', '按关键词搜索消息'],
+            ['weflow.get_session_stats', '读取单个会话消息与媒体统计'],
+            ['weflow.get_group_members', '读取群成员信息'],
+            ['weflow.prepare_analysis_pack', '生成 AI 友好的会话分析包']
+          ].map(([name, desc]) => (
+            <div className="api-item" key={name}>
+              <div className="api-endpoint">
+                <span className="method get">TOOL</span>
+                <code>{name}</code>
+              </div>
+              <p className="api-desc">{desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {showMcpWarning && (
+        <div className="modal-overlay" onClick={() => setShowMcpWarning(false)}>
+          <div className="api-warning-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <ShieldCheck size={20} />
+              <h3>安全提示</h3>
+            </div>
+            <div className="modal-body">
+              <p className="warning-text">启用 MCP 服务后，授权的 AI 客户端可以读取和分析您的本地聊天记录数据。</p>
+              <div className="warning-list">
+                <div className="warning-item">
+                  <span className="bullet">•</span>
+                  <span>仅向可信 AI 客户端配置此地址和 Token</span>
+                </div>
+                <div className="warning-item">
+                  <span className="bullet">•</span>
+                  <span>建议保持监听地址为 127.0.0.1</span>
+                </div>
+                <div className="warning-item">
+                  <span className="bullet">•</span>
+                  <span>Token 泄露后请立即重新生成</span>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowMcpWarning(false)}>
+                取消
+              </button>
+              <button className="btn btn-primary" onClick={confirmStartMcp}>
+                确认启动
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
   const handleSetupHello = async () => {
     if (!helloPassword) {
       showMessage('请输入当前密码以开启 Hello', false)
@@ -5582,6 +5897,7 @@ JSON 输出格式：
             {activeTab === 'models' && renderModelsTab()}
             {activeTab === 'cache' && renderCacheTab()}
             {activeTab === 'api' && renderApiTab()}
+            {activeTab === 'mcp' && renderMcpTab()}
             {activeTab === 'aiCommon' && renderAiCommonTab()}
             {activeTab === 'insight' && renderInsightTab()}
             {activeTab === 'aiFootprint' && renderAiFootprintTab()}
