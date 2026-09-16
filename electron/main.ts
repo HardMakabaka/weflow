@@ -30,6 +30,7 @@ import { cloudControlService } from './services/cloudControlService'
 import { destroyNotificationWindow, registerNotificationHandlers, showNotification, setNotificationNavigateHandler } from './windows/notificationWindow'
 import { httpService } from './services/httpService'
 import { mcpService } from './services/mcpService'
+import { telegramAuthService } from './services/telegram/telegramAuthService'
 import { messagePushService } from './services/messagePushService'
 import { insightService } from './services/insightService'
 import { insightRecordService } from './services/insightRecordService'
@@ -1950,6 +1951,40 @@ function registerIpcHandlers() {
     }
   })
 
+  ipcMain.handle('telegram:getStatus', async () => {
+    return telegramAuthService.getStatus()
+  })
+
+  ipcMain.handle('telegram:saveCredentials', async (_, payload: {
+    apiId?: number | string
+    apiHash?: string
+  }) => {
+    return telegramAuthService.saveCredentials(payload?.apiId, payload?.apiHash)
+  })
+
+  ipcMain.handle('telegram:sendCode', async (_, payload: {
+    phoneNumber?: string
+    forceSms?: boolean
+  }) => {
+    return telegramAuthService.sendCode(payload?.phoneNumber, payload?.forceSms === true)
+  })
+
+  ipcMain.handle('telegram:signInWithCode', async (_, payload: {
+    code?: string
+  }) => {
+    return telegramAuthService.signInWithCode(payload?.code)
+  })
+
+  ipcMain.handle('telegram:signInWithPassword', async (_, payload: {
+    password?: string
+  }) => {
+    return telegramAuthService.signInWithPassword(payload?.password)
+  })
+
+  ipcMain.handle('telegram:disconnect', async () => {
+    return telegramAuthService.disconnect()
+  })
+
   ipcMain.handle('config:clear', async () => {
     if (isLaunchAtStartupSupported() && getSystemLaunchAtStartup()) {
       const result = setSystemLaunchAtStartup(false)
@@ -1961,6 +1996,7 @@ function registerIpcHandlers() {
     messagePushService.handleConfigCleared()
     insightService.handleConfigCleared()
     groupSummaryService.handleConfigCleared()
+    await telegramAuthService.disconnect()
     return true
   })
 

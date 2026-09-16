@@ -10,12 +10,13 @@ import * as configService from '../services/config'
 import groupSummaryPrompt from '../../shared/groupSummaryPrompt.json'
 import type { ChatSession, ContactInfo } from '../types/models'
 import type { InsightProfileStatus } from '../types/electron'
+import { TelegramSettingsPanel } from '../modules/telegram/TelegramSettingsPanel'
 import {
   Eye, EyeOff, FolderSearch, FolderOpen, Search, Copy,
   RotateCcw, Trash2, Plug, Check, Sun, Moon, Monitor,
   Palette, Database, HardDrive, Info, RefreshCw, ChevronDown, Download, Mic,
   ShieldCheck, Fingerprint, Lock, KeyRound, Bell, Globe, BarChart2, X, UserRound,
-  Sparkles, Loader2, CheckCircle2, XCircle
+  Sparkles, Loader2, CheckCircle2, XCircle, Send
 } from 'lucide-react'
 import { Avatar } from '../components/Avatar'
 import './SettingsPage.scss'
@@ -29,6 +30,7 @@ type SettingsTab =
   | 'cache'
   | 'api'
   | 'mcp'
+  | 'telegram'
   | 'updates'
   | 'security'
   | 'about'
@@ -50,6 +52,7 @@ const tabs: { id: Exclude<SettingsTab, 'insight' | 'aiFootprint' | 'aiMessageIns
   { id: 'cache', label: '缓存', icon: HardDrive },
   { id: 'api', label: 'API 服务', icon: Globe },
   { id: 'mcp', label: 'MCP 服务', icon: Plug },
+  { id: 'telegram', label: 'Telegram', icon: Send },
   { id: 'analytics', label: '分析', icon: BarChart2 },
   { id: 'security', label: '安全', icon: ShieldCheck },
   { id: 'updates', label: '版本更新', icon: RefreshCw },
@@ -5898,6 +5901,7 @@ JSON 输出格式：
             {activeTab === 'cache' && renderCacheTab()}
             {activeTab === 'api' && renderApiTab()}
             {activeTab === 'mcp' && renderMcpTab()}
+            {activeTab === 'telegram' && <TelegramSettingsPanel showMessage={showMessage} />}
             {activeTab === 'aiCommon' && renderAiCommonTab()}
             {activeTab === 'insight' && renderInsightTab()}
             {activeTab === 'aiFootprint' && renderAiFootprintTab()}

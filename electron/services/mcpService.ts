@@ -11,6 +11,7 @@ import { z } from 'zod'
 import { chatService, type ChatSession, type Message } from './chatService'
 import { groupAnalyticsService } from './groupAnalyticsService'
 import { ConfigService } from './config'
+import { registerTelegramMcpTools } from './telegram/telegramMcpTools'
 
 type McpMessageType = 'text' | 'image' | 'voice' | 'video' | 'file' | 'emoji' | 'system' | 'link' | 'location' | 'unknown'
 
@@ -582,6 +583,8 @@ class McpService {
         })
       }
     )
+
+    registerTelegramMcpTools(server)
 
     return server
   }

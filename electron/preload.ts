@@ -657,5 +657,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   social: {
     saveWeiboCookie: (rawInput: string) => ipcRenderer.invoke('social:saveWeiboCookie', rawInput),
     validateWeiboUid: (uid: string) => ipcRenderer.invoke('social:validateWeiboUid', uid)
+  },
+
+  telegram: {
+    getStatus: () => ipcRenderer.invoke('telegram:getStatus'),
+    saveCredentials: (payload: { apiId?: number | string; apiHash?: string }) => ipcRenderer.invoke('telegram:saveCredentials', payload),
+    sendCode: (payload: { phoneNumber?: string; forceSms?: boolean }) => ipcRenderer.invoke('telegram:sendCode', payload),
+    signInWithCode: (payload: { code?: string }) => ipcRenderer.invoke('telegram:signInWithCode', payload),
+    signInWithPassword: (payload: { password?: string }) => ipcRenderer.invoke('telegram:signInWithPassword', payload),
+    disconnect: () => ipcRenderer.invoke('telegram:disconnect')
   }
 })

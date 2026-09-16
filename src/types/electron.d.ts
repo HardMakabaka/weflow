@@ -21,6 +21,26 @@ export interface SocialSaveWeiboCookieResult {
   error?: string
 }
 
+export interface TelegramStatus {
+  configured: boolean
+  connected: boolean
+  authorized: boolean
+  hasSession: boolean
+  pendingAuth: boolean
+  apiId: number | null
+  phoneHint: string
+  lastError?: string
+}
+
+export interface TelegramAuthResult {
+  success: boolean
+  status?: 'credentials_saved' | 'code_sent' | 'password_required' | 'logged_in' | 'disconnected'
+  isCodeViaApp?: boolean
+  phoneHint?: string
+  error?: string
+  retryAfterSeconds?: number
+}
+
 export type InsightRecordTriggerReason = 'activity' | 'silence' | 'test' | 'manual' | 'message_analysis'
 export type InsightRecordSourceType = 'insight' | 'message_analysis'
 
@@ -1460,6 +1480,14 @@ export interface ElectronAPI {
   social: {
     saveWeiboCookie: (rawInput: string) => Promise<SocialSaveWeiboCookieResult>
     validateWeiboUid: (uid: string) => Promise<SocialValidateWeiboUidResult>
+  }
+  telegram: {
+    getStatus: () => Promise<TelegramStatus>
+    saveCredentials: (payload: { apiId?: number | string; apiHash?: string }) => Promise<TelegramAuthResult>
+    sendCode: (payload: { phoneNumber?: string; forceSms?: boolean }) => Promise<TelegramAuthResult>
+    signInWithCode: (payload: { code?: string }) => Promise<TelegramAuthResult>
+    signInWithPassword: (payload: { password?: string }) => Promise<TelegramAuthResult>
+    disconnect: () => Promise<TelegramAuthResult>
   }
   insight: {
     testConnection: () => Promise<{ success: boolean; message: string }>

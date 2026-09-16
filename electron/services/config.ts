@@ -87,6 +87,11 @@ interface ConfigSchema {
   mcpPort: number
   mcpHost: string
   mcpToken: string
+  telegramEnabled: boolean
+  telegramApiId: number
+  telegramApiHash: string
+  telegramSessionString: string
+  telegramPhoneHint: string
   windowCloseBehavior: 'ask' | 'tray' | 'quit'
   quoteLayout: 'quote-top' | 'quote-bottom'
   wordCloudExcludeWords: string[]
@@ -154,6 +159,8 @@ const ENCRYPTED_STRING_KEYS: Set<string> = new Set([
   'authPassword',
   'httpApiToken',
   'mcpToken',
+  'telegramApiHash',
+  'telegramSessionString',
   'aiModelApiKey',
   'aiInsightApiKey',
   'aiInsightWeiboCookie'
@@ -231,6 +238,11 @@ export class ConfigService {
       mcpEnabled: false,
       mcpPort: 5032,
       mcpHost: '127.0.0.1',
+      telegramEnabled: false,
+      telegramApiId: 0,
+      telegramApiHash: '',
+      telegramSessionString: '',
+      telegramPhoneHint: '',
       messagePushEnabled: false,
       messagePushFilterMode: 'all',
       messagePushFilterList: [],
